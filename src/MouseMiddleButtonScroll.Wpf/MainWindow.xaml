@@ -8,7 +8,8 @@
         Title="MainWindow" Height="500" Width="500">
     <Grid>
         <ScrollViewer HorizontalScrollBarVisibility="Visible" VerticalScrollBarVisibility="Visible"
-                      local:ScrollViewerExtensions.IsMouseMiddleButtonScrollEnabled="True">
+                      local:MouseMiddleButtonScrollExtensions.IsEnabled="True"
+                      local:MouseMiddleButtonScrollExtensions.ShowCursorAtStartPoint="True">
             <Canvas x:Name="ContentCanvas" />
         </ScrollViewer>
     </Grid>

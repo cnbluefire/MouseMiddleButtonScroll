@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -25,6 +26,7 @@ namespace MouseMiddleButtonScroll.Wpf
         private Point startPoint;
         private DispatcherTimer timer;
         private double scrollStartThreshold = 60;
+        private bool showCursorAtStartPoint = false;
 
         public MouseMiddleButtonScrollHelper(ScrollViewer scrollViewer)
         {
@@ -33,178 +35,6 @@ namespace MouseMiddleButtonScroll.Wpf
             scrollViewer.MouseDown += ScrollViewer_MouseDown;
         }
 
-        private void ScrollViewer_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ChangedButton == MouseButton.Middle
-                && e.MiddleButton == MouseButtonState.Pressed)
-            {
-                ExitScrollMode();
-                e.Handled = EnterScrollMode();
-            }
-        }
-
-        private void ScrollViewer_Unloaded(object sender, RoutedEventArgs e)
-        {
-            ExitScrollMode();
-        }
-
-        private void Window_PreviewMouseUp(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ChangedButton == MouseButton.Middle
-                && e.MiddleButton == MouseButtonState.Released)
-            {
-                var curPos = e.GetPosition(scrollViewer);
-                if (Math.Abs(curPos.X - startPoint.X) > 10 || Math.Abs(curPos.Y - startPoint.Y) > 10)
-                {
-                    // In press mode, exit
-                    e.Handled = true;
-                    ExitScrollMode();
-                }
-            }
-        }
-
-        #region Exit Scroll Events
-
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
-        {
-            e.Handled = true;
-            ExitScrollMode();
-        }
-
-        private void Window_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
-        {
-            e.Handled = true;
-        }
-
-        private void Window_PreviewMouseDown(object sender, MouseButtonEventArgs e)
-        {
-            e.Handled = true;
-            ExitScrollMode();
-        }
-
-        private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            ExitScrollMode();
-        }
-
-        private void Window_Closed(object sender, EventArgs e)
-        {
-            ExitScrollMode();
-        }
-
-        private void Window_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
-        {
-            ExitScrollMode();
-        }
-
-        private void Window_StateChanged(object sender, EventArgs e)
-        {
-            ExitScrollMode();
-        }
-
-        private void Window_Deactivated(object sender, EventArgs e)
-        {
-            ExitScrollMode();
-        }
-
-        #endregion Exit Scroll Events
-
-        private void UpdateScrollStates()
-        {
-            lock (locker)
-            {
-                if (window == null) return;
-
-                var curPos = MouseEx.GetPosition(scrollViewer);
-
-                Mouse.OverrideCursor = GetCursor(startPoint, curPos, out var scrollOffsetX, out var scrollOffsetY);
-
-                if (scrollOffsetX != 0)
-                {
-                    var scrollX = Math.Min(scrollViewer.HorizontalOffset + scrollOffsetX, scrollViewer.ScrollableWidth);
-                    scrollViewer.ScrollToHorizontalOffset(scrollX);
-                }
-
-                if (scrollOffsetY != 0)
-                {
-                    var scrollY = Math.Min(scrollViewer.VerticalOffset + scrollOffsetY, scrollViewer.ScrollableHeight);
-                    scrollViewer.ScrollToVerticalOffset(scrollY);
-                }
-            }
-        }
-
-        private Cursor GetCursor(in Point startPoint, in Point currentPoint, out double scrollOffsetX, out double scrollOffsetY)
-        {
-            scrollOffsetX = 0;
-            scrollOffsetY = 0;
-
-            var offsetX = currentPoint.X - startPoint.X;
-            var offsetY = currentPoint.Y - startPoint.Y;
-
-            Debug.WriteLine($"offsetX: {offsetX}, offsetY: {offsetY}");
-
-            bool canHorizontallyScroll = scrollViewer.ScrollableWidth > 0;
-            bool canVerticallyScroll = scrollViewer.ScrollableHeight > 0;
-
-            if (Math.Abs(offsetX) < ScrollStartThreshold && Math.Abs(offsetY) < ScrollStartThreshold)
-            {
-                if (canHorizontallyScroll && canVerticallyScroll) return ScrollCursorHelper.ScrollAll;
-                else if (canHorizontallyScroll) return ScrollCursorHelper.ScrollWE;
-                else return ScrollCursorHelper.ScrollNS;
-            }
-            else
-            {
-                if (!canHorizontallyScroll) offsetX = 0;
-                if (!canVerticallyScroll) offsetX = 0;
-
-                const double ratio = 0.75d;
-
-                if (Math.Abs(offsetX) > ScrollStartThreshold)
-                {
-                    scrollOffsetX = (offsetX > 0 ? offsetX - ScrollStartThreshold : offsetX + ScrollStartThreshold) * ratio;
-                }
-
-                if (Math.Abs(offsetY) > ScrollStartThreshold)
-                {
-                    scrollOffsetY = (offsetY > 0 ? offsetY - ScrollStartThreshold : offsetY + ScrollStartThreshold) * ratio;
-                }
-
-                if (offsetX <= -ScrollStartThreshold && offsetY <= -ScrollStartThreshold)
-                {
-                    return ScrollCursorHelper.ScrollNW;
-                }
-                else if (offsetX >= ScrollStartThreshold && offsetY <= -ScrollStartThreshold)
-                {
-                    return ScrollCursorHelper.ScrollNE;
-                }
-                else if (offsetX >= ScrollStartThreshold && offsetY >= ScrollStartThreshold)
-                {
-                    return ScrollCursorHelper.ScrollSE;
-                }
-                else if (offsetX <= -ScrollStartThreshold && offsetY >= ScrollStartThreshold)
-                {
-                    return ScrollCursorHelper.ScrollSW;
-                }
-                else if (offsetX <= -ScrollStartThreshold)
-                {
-                    return ScrollCursorHelper.ScrollW;
-                }
-                else if (offsetX >= ScrollStartThreshold)
-                {
-                    return ScrollCursorHelper.ScrollE;
-                }
-                else if (offsetY <= -ScrollStartThreshold)
-                {
-                    return ScrollCursorHelper.ScrollN;
-                }
-                else if (offsetY >= ScrollStartThreshold)
-                {
-                    return ScrollCursorHelper.ScrollS;
-                }
-
-                return null;
-            }
-        }
 
         public double ScrollStartThreshold
         {
@@ -215,6 +45,19 @@ namespace MouseMiddleButtonScroll.Wpf
                 {
                     if (value < 0) throw new ArgumentException(nameof(ScrollStartThreshold));
                     scrollStartThreshold = value;
+                    UpdateScrollStates();
+                }
+            }
+        }
+
+        public bool ShowCursorAtStartPoint
+        {
+            get => showCursorAtStartPoint;
+            set
+            {
+                if (showCursorAtStartPoint != value)
+                {
+                    showCursorAtStartPoint = value;
                     UpdateScrollStates();
                 }
             }
@@ -278,6 +121,7 @@ namespace MouseMiddleButtonScroll.Wpf
 
                 startPoint = default;
 
+                RemoveScrollStartCursor();
                 scrollViewer.ReleaseMouseCapture();
                 timer?.Stop();
                 Mouse.OverrideCursor = null;
@@ -315,6 +159,308 @@ namespace MouseMiddleButtonScroll.Wpf
             }
         }
 
+
+        #region ScrollViewer Events
+
+        private void ScrollViewer_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Middle
+                && e.MiddleButton == MouseButtonState.Pressed)
+            {
+                ExitScrollMode();
+                e.Handled = EnterScrollMode();
+            }
+        }
+
+        private void ScrollViewer_Unloaded(object sender, RoutedEventArgs e)
+        {
+            ExitScrollMode();
+        }
+
+        private void Window_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Middle
+                && e.MiddleButton == MouseButtonState.Released)
+            {
+                var curPos = e.GetPosition(scrollViewer);
+                if (Math.Abs(curPos.X - startPoint.X) > 10 || Math.Abs(curPos.Y - startPoint.Y) > 10)
+                {
+                    // In press mode, exit
+                    e.Handled = true;
+                    ExitScrollMode();
+                }
+            }
+        }
+
+        #endregion ScrollViewer Events
+
+
+        #region Exit Scroll Events
+
+        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            e.Handled = true;
+            ExitScrollMode();
+        }
+
+        private void Window_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            e.Handled = true;
+        }
+
+        private void Window_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            ExitScrollMode();
+        }
+
+        private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            ExitScrollMode();
+        }
+
+        private void Window_Closed(object sender, EventArgs e)
+        {
+            ExitScrollMode();
+        }
+
+        private void Window_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            ExitScrollMode();
+        }
+
+        private void Window_StateChanged(object sender, EventArgs e)
+        {
+            ExitScrollMode();
+        }
+
+        private void Window_Deactivated(object sender, EventArgs e)
+        {
+            ExitScrollMode();
+        }
+
+        #endregion Exit Scroll Events
+
+
+        #region Update States
+
+        private void UpdateScrollStates()
+        {
+            lock (locker)
+            {
+                if (window == null) return;
+
+                var curPos = MouseEx.GetPosition(scrollViewer);
+
+                UpdateScrollStartCursor();
+                Mouse.OverrideCursor = GetCursor(startPoint, curPos, out var scrollOffsetX, out var scrollOffsetY);
+
+                if (scrollOffsetX != 0)
+                {
+                    var scrollX = Math.Min(scrollViewer.HorizontalOffset + scrollOffsetX, scrollViewer.ScrollableWidth);
+                    scrollViewer.ScrollToHorizontalOffset(scrollX);
+                }
+
+                if (scrollOffsetY != 0)
+                {
+                    var scrollY = Math.Min(scrollViewer.VerticalOffset + scrollOffsetY, scrollViewer.ScrollableHeight);
+                    scrollViewer.ScrollToVerticalOffset(scrollY);
+                }
+            }
+        }
+
+        private void UpdateScrollStartCursor()
+        {
+            if (window == null)
+            {
+                RemoveScrollStartCursor();
+                return;
+            }
+
+            var sv = scrollViewer;
+            if (sv == null) return;
+
+            var layer = AdornerLayer.GetAdornerLayer(sv);
+            var adorner = layer.GetAdorners(sv)?.OfType<CursorAdorner>().FirstOrDefault();
+
+            if (ShowCursorAtStartPoint)
+            {
+                if (adorner == null)
+                {
+                    adorner = new CursorAdorner(sv);
+                    layer.Add(adorner);
+                }
+
+                adorner.StartPoint = startPoint;
+                adorner.CanHorizontallyScroll = scrollViewer.ScrollableWidth > 0;
+                adorner.CanVerticallyScroll = scrollViewer.ScrollableHeight > 0;
+            }
+            else
+            {
+                RemoveScrollStartCursor();
+            }
+        }
+
+        private void RemoveScrollStartCursor()
+        {
+            var sv = scrollViewer;
+            if (sv == null) return;
+
+            var layer = AdornerLayer.GetAdornerLayer(sv);
+            var adorner = layer?.GetAdorners(sv)?.OfType<CursorAdorner>().FirstOrDefault();
+
+            if (adorner != null)
+            {
+                layer.Remove(adorner);
+            }
+        }
+
+        private Cursor GetCursor(in Point startPoint, in Point currentPoint, out double scrollOffsetX, out double scrollOffsetY)
+        {
+            scrollOffsetX = 0;
+            scrollOffsetY = 0;
+
+            var offsetX = currentPoint.X - startPoint.X;
+            var offsetY = currentPoint.Y - startPoint.Y;
+
+            bool canHorizontallyScroll = scrollViewer.ScrollableWidth > 0;
+            bool canVerticallyScroll = scrollViewer.ScrollableHeight > 0;
+
+            if (Math.Abs(offsetX) < ScrollStartThreshold && Math.Abs(offsetY) < ScrollStartThreshold)
+            {
+                if (canHorizontallyScroll && canVerticallyScroll) return ScrollCursorHelper.ScrollAll;
+                else if (canHorizontallyScroll) return ScrollCursorHelper.ScrollWE;
+                else return ScrollCursorHelper.ScrollNS;
+            }
+            else
+            {
+                if (!canHorizontallyScroll) offsetX = 0;
+                if (!canVerticallyScroll) offsetY = 0;
+
+                const double ratio = 0.75d;
+
+                if (Math.Abs(offsetX) > ScrollStartThreshold)
+                {
+                    scrollOffsetX = (offsetX > 0 ? offsetX - ScrollStartThreshold : offsetX + ScrollStartThreshold) * ratio;
+                }
+
+                if (Math.Abs(offsetY) > ScrollStartThreshold)
+                {
+                    scrollOffsetY = (offsetY > 0 ? offsetY - ScrollStartThreshold : offsetY + ScrollStartThreshold) * ratio;
+                }
+
+                if (offsetX <= -ScrollStartThreshold && offsetY <= -ScrollStartThreshold)
+                {
+                    return ScrollCursorHelper.ScrollNW;
+                }
+                else if (offsetX >= ScrollStartThreshold && offsetY <= -ScrollStartThreshold)
+                {
+                    return ScrollCursorHelper.ScrollNE;
+                }
+                else if (offsetX >= ScrollStartThreshold && offsetY >= ScrollStartThreshold)
+                {
+                    return ScrollCursorHelper.ScrollSE;
+                }
+                else if (offsetX <= -ScrollStartThreshold && offsetY >= ScrollStartThreshold)
+                {
+                    return ScrollCursorHelper.ScrollSW;
+                }
+                else if (offsetX <= -ScrollStartThreshold)
+                {
+                    return ScrollCursorHelper.ScrollW;
+                }
+                else if (offsetX >= ScrollStartThreshold)
+                {
+                    return ScrollCursorHelper.ScrollE;
+                }
+                else if (offsetY <= -ScrollStartThreshold)
+                {
+                    return ScrollCursorHelper.ScrollN;
+                }
+                else if (offsetY >= ScrollStartThreshold)
+                {
+                    return ScrollCursorHelper.ScrollS;
+                }
+
+                return null;
+            }
+        }
+
+        #endregion Update States
+
+
+        #region Nested Classes
+
+        private class CursorAdorner : Adorner
+        {
+            public CursorAdorner(UIElement adornedElement) : base(adornedElement)
+            {
+            }
+
+            private Point startPoint;
+            private bool canHorizontallyScroll;
+            private bool canVerticallyScroll;
+
+            public Point StartPoint
+            {
+                get => startPoint;
+                set
+                {
+                    if (startPoint != value)
+                    {
+                        startPoint = value;
+                        InvalidateVisual();
+                    }
+                }
+            }
+
+            public bool CanHorizontallyScroll
+            {
+                get => canHorizontallyScroll;
+                set
+                {
+                    if (canHorizontallyScroll != value)
+                    {
+                        canHorizontallyScroll = value;
+                        InvalidateVisual();
+                    }
+                }
+            }
+
+            public bool CanVerticallyScroll
+            {
+                get => canVerticallyScroll;
+                set
+                {
+                    if (canVerticallyScroll != value)
+                    {
+                        canVerticallyScroll = value;
+                        InvalidateVisual();
+                    }
+                }
+            }
+
+            protected override void OnRender(DrawingContext drawingContext)
+            {
+                base.OnRender(drawingContext);
+
+                var image = GetCursorImage();
+
+                if (image != null)
+                {
+                    drawingContext.DrawImage(image, new Rect(startPoint.X - 16, startPoint.Y - 16, 32, 32));
+                }
+            }
+
+            private ImageSource GetCursorImage()
+            {
+                if (CanHorizontallyScroll && CanVerticallyScroll) return ScrollCursorHelper.ScrollAllImage;
+                else if (CanHorizontallyScroll) return ScrollCursorHelper.ScrollWEImage;
+                else if (CanVerticallyScroll) return ScrollCursorHelper.ScrollNSImage;
+                else return null;
+            }
+        }
+
         private static class MouseEx
         {
             public static Point GetPosition(UIElement element)
@@ -339,11 +485,11 @@ namespace MouseMiddleButtonScroll.Wpf
             }
         }
 
-        public static class ScrollCursorHelper
+        private static class ScrollCursorHelper
         {
             private static readonly Dictionary<string, Cursor> cursors = new Dictionary<string, Cursor>();
+            private static readonly Dictionary<string, WriteableBitmap> cursorImages = new Dictionary<string, WriteableBitmap>();
             private static Func<Cursor, SafeHandle> cursorHandleGetter;
-            private static WriteableBitmap scrollAllImage;
 
             public static Cursor ScrollAll => EnsureCursor("Assets.ScrollAll.cur", Cursors.ScrollAll);
             public static Cursor ScrollE => EnsureCursor("Assets.ScrollE.cur", Cursors.ScrollE);
@@ -357,26 +503,9 @@ namespace MouseMiddleButtonScroll.Wpf
             public static Cursor ScrollW => EnsureCursor("Assets.ScrollW.cur", Cursors.ScrollW);
             public static Cursor ScrollWE => EnsureCursor("Assets.ScrollWE.cur", Cursors.ScrollWE);
 
-            public static WriteableBitmap ScrollAllImage
-            {
-                get
-                {
-                    if (scrollAllImage == null)
-                    {
-                        lock (cursors)
-                        {
-                            if (scrollAllImage == null)
-                            {
-                                scrollAllImage = GetCursorImage(ScrollAll)
-                                    ?? GetCursorImage(Cursors.ScrollAll)
-                                    ?? new WriteableBitmap(32, 32, 96, 96, PixelFormats.Bgra32, null);
-                            }
-                        }
-                    }
-
-                    return new WriteableBitmap(scrollAllImage);
-                }
-            }
+            public static ImageSource ScrollAllImage => EnsureCursorImage("Assets.ScrollAll.cur", Cursors.ScrollAll);
+            public static ImageSource ScrollNSImage => EnsureCursorImage("Assets.ScrollNS.cur", Cursors.ScrollNS);
+            public static ImageSource ScrollWEImage => EnsureCursorImage("Assets.ScrollWE.cur", Cursors.ScrollWE);
 
             private static Cursor EnsureCursor(string fileName, Cursor fallbackCursor)
             {
@@ -392,6 +521,23 @@ namespace MouseMiddleButtonScroll.Wpf
                         }
                         return (cursors[fileName] = fallbackCursor);
                     }
+                }
+            }
+
+            private static ImageSource EnsureCursorImage(string fileName, Cursor fallbackCursor)
+            {
+                lock (cursorImages)
+                {
+                    if (cursorImages.TryGetValue(fileName, out var image)) return image;
+
+                    var cursor = EnsureCursor(fileName, fallbackCursor);
+                    image = GetCursorImage(cursor);
+                    if (image == null && cursor != fallbackCursor) image = GetCursorImage(fallbackCursor);
+
+                    if (image == null) image = new WriteableBitmap(32, 32, 96, 96, PixelFormats.Bgra32, null);
+                    cursorImages[fileName] = image;
+
+                    return image;
                 }
             }
 
@@ -455,6 +601,7 @@ namespace MouseMiddleButtonScroll.Wpf
                                             {
                                                 var size = data.Stride * data.Height;
                                                 Buffer.MemoryCopy((void*)data.Scan0, (void*)writeableBitmap.BackBuffer, size, size);
+                                                writeableBitmap.AddDirtyRect(new Int32Rect(0, 0, data.Width, data.Height));
                                             }
                                             finally
                                             {
@@ -481,5 +628,8 @@ namespace MouseMiddleButtonScroll.Wpf
                 return null;
             }
         }
+
+        #endregion Nested Classes
+
     }
 }
