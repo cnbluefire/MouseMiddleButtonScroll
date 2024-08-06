@@ -4,12 +4,14 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.ConstrainedExecution;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace MouseMiddleButtonScroll.Wpf
@@ -113,7 +115,7 @@ namespace MouseMiddleButtonScroll.Wpf
             {
                 if (window == null) return;
 
-                var curPos = Mouse.GetPosition(scrollViewer);
+                var curPos = MouseEx.GetPosition(scrollViewer);
 
                 Mouse.OverrideCursor = GetCursor(startPoint, curPos, out var scrollOffsetX, out var scrollOffsetY);
 
@@ -255,7 +257,7 @@ namespace MouseMiddleButtonScroll.Wpf
                     window.Closed += Window_Closed;
                     window.SizeChanged += Window_SizeChanged;
 
-                    startPoint = Mouse.GetPosition(scrollViewer);
+                    startPoint = MouseEx.GetPosition(scrollViewer);
 
                     UpdateScrollStates();
                     timer.Start();
@@ -313,9 +315,35 @@ namespace MouseMiddleButtonScroll.Wpf
             }
         }
 
-        private static class ScrollCursorHelper
+        private static class MouseEx
+        {
+            public static Point GetPosition(UIElement element)
+            {
+                if (GetCursorPos(out var point))
+                {
+                    return element.PointFromScreen(new Point(point.X, point.Y));
+                }
+                return Mouse.GetPosition(element);
+            }
+
+
+            [DllImport("user32.dll")]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            private static extern bool GetCursorPos(out _POINT lpPoint);
+
+            [StructLayout(LayoutKind.Sequential)]
+            private struct _POINT
+            {
+                public int X;
+                public int Y;
+            }
+        }
+
+        public static class ScrollCursorHelper
         {
             private static readonly Dictionary<string, Cursor> cursors = new Dictionary<string, Cursor>();
+            private static Func<Cursor, SafeHandle> cursorHandleGetter;
+            private static WriteableBitmap scrollAllImage;
 
             public static Cursor ScrollAll => EnsureCursor("Assets.ScrollAll.cur", Cursors.ScrollAll);
             public static Cursor ScrollE => EnsureCursor("Assets.ScrollE.cur", Cursors.ScrollE);
@@ -328,6 +356,27 @@ namespace MouseMiddleButtonScroll.Wpf
             public static Cursor ScrollSW => EnsureCursor("Assets.ScrollSW.cur", Cursors.ScrollSW);
             public static Cursor ScrollW => EnsureCursor("Assets.ScrollW.cur", Cursors.ScrollW);
             public static Cursor ScrollWE => EnsureCursor("Assets.ScrollWE.cur", Cursors.ScrollWE);
+
+            public static WriteableBitmap ScrollAllImage
+            {
+                get
+                {
+                    if (scrollAllImage == null)
+                    {
+                        lock (cursors)
+                        {
+                            if (scrollAllImage == null)
+                            {
+                                scrollAllImage = GetCursorImage(ScrollAll)
+                                    ?? GetCursorImage(Cursors.ScrollAll)
+                                    ?? new WriteableBitmap(32, 32, 96, 96, PixelFormats.Bgra32, null);
+                            }
+                        }
+                    }
+
+                    return new WriteableBitmap(scrollAllImage);
+                }
+            }
 
             private static Cursor EnsureCursor(string fileName, Cursor fallbackCursor)
             {
@@ -344,7 +393,92 @@ namespace MouseMiddleButtonScroll.Wpf
                         return (cursors[fileName] = fallbackCursor);
                     }
                 }
+            }
 
+            private unsafe static WriteableBitmap GetCursorImage(Cursor cursor)
+            {
+                if (cursorHandleGetter == null)
+                {
+                    lock (cursors)
+                    {
+                        if (cursorHandleGetter == null)
+                        {
+                            try
+                            {
+                                var propertyInfo = typeof(Cursor).GetProperty("Handle", BindingFlags.Instance | BindingFlags.NonPublic);
+                                if (propertyInfo != null)
+                                {
+                                    var p = System.Linq.Expressions.Expression.Parameter(typeof(Cursor), "c");
+                                    var propertyAccess = System.Linq.Expressions.Expression.Property(p, propertyInfo);
+                                    var cast = System.Linq.Expressions.Expression.Convert(propertyAccess, typeof(SafeHandle));
+
+                                    cursorHandleGetter = System.Linq.Expressions.Expression.Lambda<Func<Cursor, SafeHandle>>(cast, p).Compile();
+                                }
+                            }
+                            catch { }
+
+                            if (cursorHandleGetter == null) cursorHandleGetter = _ => null;
+                        }
+                    }
+                }
+
+                var handle = cursorHandleGetter.Invoke(cursor);
+                if (handle != null && !handle.IsInvalid)
+                {
+                    bool success = false;
+                    handle.DangerousAddRef(ref success);
+                    if (success)
+                    {
+                        try
+                        {
+                            var hIcon = handle.DangerousGetHandle();
+                            using (var icon = System.Drawing.Icon.FromHandle(hIcon))
+                            using (var bitmap = icon.ToBitmap())
+                            using (var convertBitmap = new System.Drawing.Bitmap(bitmap.Width, bitmap.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb))
+                            {
+                                using (var g = System.Drawing.Graphics.FromImage(convertBitmap))
+                                {
+                                    g.DrawImageUnscaled(bitmap, 0, 0);
+                                }
+                                var data = convertBitmap.LockBits(
+                                    new System.Drawing.Rectangle(0, 0, convertBitmap.Width, convertBitmap.Height),
+                                    System.Drawing.Imaging.ImageLockMode.ReadWrite,
+                                    System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                                if (data != null)
+                                {
+                                    try
+                                    {
+                                        var writeableBitmap = new WriteableBitmap(convertBitmap.Width, convertBitmap.Height, 96, 96, PixelFormats.Bgra32, null);
+                                        if (writeableBitmap.TryLock(Duration.Forever))
+                                        {
+                                            try
+                                            {
+                                                var size = data.Stride * data.Height;
+                                                Buffer.MemoryCopy((void*)data.Scan0, (void*)writeableBitmap.BackBuffer, size, size);
+                                            }
+                                            finally
+                                            {
+                                                writeableBitmap.Unlock();
+                                            }
+
+                                            return writeableBitmap;
+                                        }
+                                    }
+                                    finally
+                                    {
+                                        convertBitmap.UnlockBits(data);
+                                    }
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            handle.DangerousRelease();
+                        }
+                    }
+                }
+
+                return null;
             }
         }
     }
