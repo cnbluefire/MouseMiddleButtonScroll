@@ -7,9 +7,25 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="500" Width="500">
     <Grid>
-        <ScrollViewer HorizontalScrollBarVisibility="Visible" VerticalScrollBarVisibility="Visible"
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal" Margin="12,8">
+            <CheckBox x:Name="ShowCursorAtStartPointButton" Content="Show cursor at start point" Padding="8,4" VerticalContentAlignment="Center" VerticalAlignment="Center" />
+
+            <ComboBox x:Name="ScrollModeComboBox" SelectedIndex="0" Margin="8,0,0,0" 
+                      VerticalContentAlignment="Center" VerticalAlignment="Stretch"
+                      SelectionChanged="ComboBox_SelectionChanged">
+                <ComboBoxItem>Scroll All</ComboBoxItem>
+                <ComboBoxItem>Horizontal Scroll</ComboBoxItem>
+                <ComboBoxItem>Vertical Scroll</ComboBoxItem>
+            </ComboBox>
+        </StackPanel>
+        <ScrollViewer x:Name="ContentScrollViewer" Grid.Row="1" 
+                      HorizontalScrollBarVisibility="Visible" VerticalScrollBarVisibility="Visible"
                       local:MouseMiddleButtonScrollExtensions.IsEnabled="True"
-                      local:MouseMiddleButtonScrollExtensions.ShowCursorAtStartPoint="True">
+                      local:MouseMiddleButtonScrollExtensions.ShowCursorAtStartPoint="{Binding ElementName=ShowCursorAtStartPointButton,Path=IsChecked,Mode=OneWay}">
             <Canvas x:Name="ContentCanvas" />
         </ScrollViewer>
     </Grid>

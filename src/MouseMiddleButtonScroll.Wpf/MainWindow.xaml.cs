@@ -58,5 +58,27 @@ namespace MouseMiddleButtonScroll.Wpf
                 ContentCanvas.Height = Math.Max(ContentCanvas.Height, y + itemHeight);
             }
         }
+
+        private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ContentScrollViewer == null) return;
+            switch (((ComboBox)sender).SelectedIndex)
+            {
+                case 1:
+                    ContentScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Visible;
+                    ContentScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Disabled;
+                    break;
+
+                case 2:
+                    ContentScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
+                    ContentScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Visible;
+                    break;
+
+                default:
+                    ContentScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Visible;
+                    ContentScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Visible;
+                    break;
+            }
+        }
     }
 }

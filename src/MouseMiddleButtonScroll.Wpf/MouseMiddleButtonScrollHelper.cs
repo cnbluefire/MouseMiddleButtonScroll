@@ -24,8 +24,9 @@ namespace MouseMiddleButtonScroll.Wpf
         private bool disposeValue;
         private Window window;
         private Point startPoint;
+        private bool hasScrolled;
         private DispatcherTimer timer;
-        private double scrollStartThreshold = 60;
+        private double scrollStartThreshold = 20;
         private bool showCursorAtStartPoint = false;
 
         public MouseMiddleButtonScrollHelper(ScrollViewer scrollViewer)
@@ -101,6 +102,7 @@ namespace MouseMiddleButtonScroll.Wpf
                     window.SizeChanged += Window_SizeChanged;
 
                     startPoint = MouseEx.GetPosition(scrollViewer);
+                    hasScrolled = false;
 
                     UpdateScrollStates();
                     timer.Start();
@@ -120,6 +122,7 @@ namespace MouseMiddleButtonScroll.Wpf
                 if (window == null) return;
 
                 startPoint = default;
+                hasScrolled = false;
 
                 RemoveScrollStartCursor();
                 scrollViewer.ReleaseMouseCapture();
@@ -183,7 +186,7 @@ namespace MouseMiddleButtonScroll.Wpf
                 && e.MiddleButton == MouseButtonState.Released)
             {
                 var curPos = e.GetPosition(scrollViewer);
-                if (Math.Abs(curPos.X - startPoint.X) > 10 || Math.Abs(curPos.Y - startPoint.Y) > 10)
+                if (Math.Abs(curPos.X - startPoint.X) > 10 || Math.Abs(curPos.Y - startPoint.Y) > 10 || hasScrolled)
                 {
                     // In press mode, exit
                     e.Handled = true;
@@ -257,12 +260,14 @@ namespace MouseMiddleButtonScroll.Wpf
 
                 if (scrollOffsetX != 0)
                 {
+                    hasScrolled = true;
                     var scrollX = Math.Min(scrollViewer.HorizontalOffset + scrollOffsetX, scrollViewer.ScrollableWidth);
                     scrollViewer.ScrollToHorizontalOffset(scrollX);
                 }
 
                 if (scrollOffsetY != 0)
                 {
+                    hasScrolled = true;
                     var scrollY = Math.Min(scrollViewer.VerticalOffset + scrollOffsetY, scrollViewer.ScrollableHeight);
                     scrollViewer.ScrollToVerticalOffset(scrollY);
                 }
@@ -326,13 +331,13 @@ namespace MouseMiddleButtonScroll.Wpf
             bool canHorizontallyScroll = scrollViewer.ScrollableWidth > 0;
             bool canVerticallyScroll = scrollViewer.ScrollableHeight > 0;
 
-            if (Math.Abs(offsetX) < ScrollStartThreshold && Math.Abs(offsetY) < ScrollStartThreshold)
-            {
-                if (canHorizontallyScroll && canVerticallyScroll) return ScrollCursorHelper.ScrollAll;
-                else if (canHorizontallyScroll) return ScrollCursorHelper.ScrollWE;
-                else return ScrollCursorHelper.ScrollNS;
-            }
-            else
+            Cursor defaultCursor = null;
+
+            if (canHorizontallyScroll && canVerticallyScroll) defaultCursor = ScrollCursorHelper.ScrollAll;
+            else if (canHorizontallyScroll) defaultCursor = ScrollCursorHelper.ScrollWE;
+            else defaultCursor = ScrollCursorHelper.ScrollNS;
+
+            if (Math.Abs(offsetX) >= ScrollStartThreshold || Math.Abs(offsetY) >= ScrollStartThreshold)
             {
                 if (!canHorizontallyScroll) offsetX = 0;
                 if (!canVerticallyScroll) offsetY = 0;
@@ -381,9 +386,9 @@ namespace MouseMiddleButtonScroll.Wpf
                 {
                     return ScrollCursorHelper.ScrollS;
                 }
-
-                return null;
             }
+
+            return defaultCursor;
         }
 
         #endregion Update States
