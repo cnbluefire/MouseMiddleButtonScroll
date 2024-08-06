@@ -4,9 +4,7 @@ namespace MouseMiddleButtonScroll.Wpf
 {
     internal class Program
     {
-        [System.STAThreadAttribute()]
-        [System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [System.CodeDom.Compiler.GeneratedCodeAttribute("PresentationBuildTasks", "5.0.2.0")]
+        [STAThread]
         public static void Main()
         {
             MouseMiddleButtonScroll.Wpf.App app = new MouseMiddleButtonScroll.Wpf.App();

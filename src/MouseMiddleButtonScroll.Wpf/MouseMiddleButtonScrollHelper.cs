@@ -72,8 +72,9 @@ namespace MouseMiddleButtonScroll.Wpf
             {
                 if (window != null) return true;
 
-                if (scrollViewer.IsLoaded && scrollViewer.CaptureMouse()
-                    && (scrollViewer.ScrollableWidth > 0 || scrollViewer.ScrollableHeight > 0))
+                if (scrollViewer.IsLoaded 
+                    && (scrollViewer.ScrollableWidth > 0 || scrollViewer.ScrollableHeight > 0) 
+                    && scrollViewer.CaptureMouse())
                 {
                     window = Window.GetWindow(scrollViewer);
                 }
@@ -110,6 +111,7 @@ namespace MouseMiddleButtonScroll.Wpf
                     return true;
                 }
 
+                ExitScrollMode();
                 return false;
             }
         }
