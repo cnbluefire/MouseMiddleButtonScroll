@@ -10,12 +10,12 @@ namespace MouseMiddleButtonScroll.Wpf
 {
     public class MouseMiddleButtonScrollExtensions
     {
-        public static bool GetShowCursorAtStartPoint(ScrollViewer obj)
+        public static bool GetShowCursorAtStartPoint(UIElement obj)
         {
             return (bool)obj.GetValue(ShowCursorAtStartPointProperty);
         }
 
-        public static void SetShowCursorAtStartPoint(ScrollViewer obj, bool value)
+        public static void SetShowCursorAtStartPoint(UIElement obj, bool value)
         {
             obj.SetValue(ShowCursorAtStartPointProperty, value);
         }
@@ -23,7 +23,7 @@ namespace MouseMiddleButtonScroll.Wpf
         public static readonly DependencyProperty ShowCursorAtStartPointProperty =
             DependencyProperty.RegisterAttached("ShowCursorAtStartPoint", typeof(bool), typeof(MouseMiddleButtonScrollExtensions), new PropertyMetadata(false, (s, a) =>
             {
-                if (s is ScrollViewer sender && !Equals(a.NewValue, a.OldValue))
+                if (s is UIElement sender && !Equals(a.NewValue, a.OldValue))
                 {
                     var helper = (MouseMiddleButtonScrollHelper)sender.GetValue(MouseMiddleButtonScrollHelperProperty);
                     if (helper != null)
@@ -35,12 +35,12 @@ namespace MouseMiddleButtonScroll.Wpf
 
 
 
-        public static bool GetIsEnabled(ScrollViewer obj)
+        public static bool GetIsEnabled(UIElement obj)
         {
             return (bool)obj.GetValue(IsEnabledProperty);
         }
 
-        public static void SetIsEnabled(ScrollViewer obj, bool value)
+        public static void SetIsEnabled(UIElement obj, bool value)
         {
             obj.SetValue(IsEnabledProperty, value);
         }
@@ -48,7 +48,7 @@ namespace MouseMiddleButtonScroll.Wpf
         public static readonly DependencyProperty IsEnabledProperty =
             DependencyProperty.RegisterAttached("IsEnabled", typeof(bool), typeof(MouseMiddleButtonScrollExtensions), new PropertyMetadata(false, (s, a) =>
             {
-                if (s is ScrollViewer sender && !Equals(a.NewValue, a.OldValue))
+                if (s is UIElement sender && !Equals(a.NewValue, a.OldValue))
                 {
                     sender.SetValue(MouseMiddleButtonScrollHelperProperty, null);
                     if (a.NewValue is true)
@@ -71,13 +71,13 @@ namespace MouseMiddleButtonScroll.Wpf
                 }
             }));
 
-        public static bool TryEnterScrollMode(ScrollViewer scrollViewer)
+        public static bool TryEnterScrollMode(UIElement scrollViewer)
         {
             var helper = (MouseMiddleButtonScrollHelper)scrollViewer.GetValue(MouseMiddleButtonScrollHelperProperty);
             return helper?.EnterScrollMode() ?? false;
         }
 
-        public static void ExitScrollMode(ScrollViewer scrollViewer)
+        public static void ExitScrollMode(UIElement scrollViewer)
         {
             var helper = (MouseMiddleButtonScrollHelper)scrollViewer.GetValue(MouseMiddleButtonScrollHelperProperty);
             helper?.ExitScrollMode();

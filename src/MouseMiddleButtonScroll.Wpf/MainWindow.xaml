@@ -6,7 +6,8 @@
         xmlns:local="clr-namespace:MouseMiddleButtonScroll.Wpf"
         mc:Ignorable="d"
         Title="MainWindow" Height="500" Width="500">
-    <Grid>
+    <Grid local:MouseMiddleButtonScrollExtensions.IsEnabled="True"
+          local:MouseMiddleButtonScrollExtensions.ShowCursorAtStartPoint="{Binding ElementName=ShowCursorAtStartPointButton,Path=IsChecked,Mode=OneWay}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -23,9 +24,7 @@
             </ComboBox>
         </StackPanel>
         <ScrollViewer x:Name="ContentScrollViewer" Grid.Row="1" 
-                      HorizontalScrollBarVisibility="Visible" VerticalScrollBarVisibility="Visible"
-                      local:MouseMiddleButtonScrollExtensions.IsEnabled="True"
-                      local:MouseMiddleButtonScrollExtensions.ShowCursorAtStartPoint="{Binding ElementName=ShowCursorAtStartPointButton,Path=IsChecked,Mode=OneWay}">
+                      HorizontalScrollBarVisibility="Visible" VerticalScrollBarVisibility="Visible">
             <Canvas x:Name="ContentCanvas" />
         </ScrollViewer>
     </Grid>

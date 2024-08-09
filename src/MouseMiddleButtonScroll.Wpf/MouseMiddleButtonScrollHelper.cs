@@ -20,7 +20,8 @@ namespace MouseMiddleButtonScroll.Wpf
     internal class MouseMiddleButtonScrollHelper : IDisposable
     {
         private readonly object locker = new object();
-        private readonly ScrollViewer scrollViewer;
+        private ScrollViewer scrollViewer;
+        private UIElement element;
         private bool disposeValue;
         private Window window;
         private Point startPoint;
@@ -29,13 +30,11 @@ namespace MouseMiddleButtonScroll.Wpf
         private double scrollStartThreshold = 20;
         private bool showCursorAtStartPoint = false;
 
-        public MouseMiddleButtonScrollHelper(ScrollViewer scrollViewer)
+        public MouseMiddleButtonScrollHelper(UIElement element)
         {
-            this.scrollViewer = scrollViewer;
-
-            scrollViewer.MouseDown += ScrollViewer_MouseDown;
+            this.element = element;
+            this.element.MouseDown += Element_MouseDown;
         }
-
 
         public double ScrollStartThreshold
         {
@@ -70,10 +69,11 @@ namespace MouseMiddleButtonScroll.Wpf
         {
             lock (locker)
             {
+                if (scrollViewer == null) return false;
                 if (window != null) return true;
 
-                if (scrollViewer.IsLoaded 
-                    && (scrollViewer.ScrollableWidth > 0 || scrollViewer.ScrollableHeight > 0) 
+                if (scrollViewer.IsLoaded
+                    && (scrollViewer.ScrollableWidth > 0 || scrollViewer.ScrollableHeight > 0)
                     && scrollViewer.CaptureMouse())
                 {
                     window = Window.GetWindow(scrollViewer);
@@ -134,6 +134,7 @@ namespace MouseMiddleButtonScroll.Wpf
                 scrollViewer.Unloaded -= ScrollViewer_Unloaded;
 
                 this.window = null;
+                this.scrollViewer = null;
 
                 if (window != null)
                 {
@@ -158,7 +159,8 @@ namespace MouseMiddleButtonScroll.Wpf
             {
                 disposeValue = true;
 
-                scrollViewer.MouseDown -= ScrollViewer_MouseDown;
+                element.MouseDown -= Element_MouseDown;
+                element = null;
 
                 ExitScrollMode();
             }
@@ -167,12 +169,29 @@ namespace MouseMiddleButtonScroll.Wpf
 
         #region ScrollViewer Events
 
-        private void ScrollViewer_MouseDown(object sender, MouseButtonEventArgs e)
+
+        private void Element_MouseDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ChangedButton == MouseButton.Middle
                 && e.MiddleButton == MouseButtonState.Pressed)
             {
                 ExitScrollMode();
+
+                scrollViewer = sender as ScrollViewer;
+                if (scrollViewer == null)
+                {
+                    var p = e.OriginalSource as DependencyObject;
+                    while (p != null && !(p is ScrollViewer) && p != element)
+                    {
+                        p = (p as FrameworkElement)?.Parent ?? VisualTreeHelper.GetParent(p);
+                    }
+
+                    if (p is ScrollViewer sv)
+                    {
+                        scrollViewer = sv;
+                    }
+                }
+
                 e.Handled = EnterScrollMode();
             }
         }
