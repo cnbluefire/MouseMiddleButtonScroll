@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="MouseMiddleButtonScroll.WinUI3.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:MouseMiddleButtonScroll.WinUI3"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid x:Name="LayoutRoot"
+          local:MouseMiddleButtonScrollExtensions.IsEnabled="True"
+          local:MouseMiddleButtonScrollExtensions.ShowCursorAtStartPoint="{Binding ElementName=ShowCursorAtStartPointButton,Path=IsChecked,Mode=OneWay}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal" Margin="12,8">
+            <CheckBox x:Name="ShowCursorAtStartPointButton" Content="Show cursor at start point" Padding="8,4" VerticalContentAlignment="Center" VerticalAlignment="Center" />
+
+            <ComboBox x:Name="ScrollModeComboBox" SelectedIndex="0" Margin="8,0,0,0" 
+                      VerticalContentAlignment="Center" VerticalAlignment="Stretch"
+                      SelectionChanged="ComboBox_SelectionChanged">
+                <ComboBoxItem>Scroll All</ComboBoxItem>
+                <ComboBoxItem>Horizontal Scroll</ComboBoxItem>
+                <ComboBoxItem>Vertical Scroll</ComboBoxItem>
+            </ComboBox>
+        </StackPanel>
+        <ScrollViewer x:Name="ContentScrollViewer" Grid.Row="1" 
+                      HorizontalScrollBarVisibility="Visible" VerticalScrollBarVisibility="Visible">
+            <Canvas x:Name="ContentCanvas" />
+        </ScrollViewer>
+    </Grid>
+</Window>

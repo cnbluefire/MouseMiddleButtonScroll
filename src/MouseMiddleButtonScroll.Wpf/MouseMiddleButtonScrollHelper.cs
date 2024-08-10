@@ -517,17 +517,17 @@ namespace MouseMiddleButtonScroll.Wpf
             private static readonly Dictionary<string, WriteableBitmap> cursorImages = new Dictionary<string, WriteableBitmap>();
             private static Func<Cursor, SafeHandle> cursorHandleGetter;
 
-            public static Cursor ScrollAll => EnsureCursor("Assets.ScrollAll.cur", Cursors.ScrollAll);
-            public static Cursor ScrollE => EnsureCursor("Assets.ScrollE.cur", Cursors.ScrollE);
-            public static Cursor ScrollN => EnsureCursor("Assets.ScrollN.cur", Cursors.ScrollN);
-            public static Cursor ScrollNE => EnsureCursor("Assets.ScrollNE.cur", Cursors.ScrollNE);
-            public static Cursor ScrollNS => EnsureCursor("Assets.ScrollNS.cur", Cursors.ScrollNS);
-            public static Cursor ScrollNW => EnsureCursor("Assets.ScrollNW.cur", Cursors.ScrollNW);
-            public static Cursor ScrollS => EnsureCursor("Assets.ScrollS.cur", Cursors.ScrollS);
-            public static Cursor ScrollSE => EnsureCursor("Assets.ScrollSE.cur", Cursors.ScrollSE);
-            public static Cursor ScrollSW => EnsureCursor("Assets.ScrollSW.cur", Cursors.ScrollSW);
-            public static Cursor ScrollW => EnsureCursor("Assets.ScrollW.cur", Cursors.ScrollW);
-            public static Cursor ScrollWE => EnsureCursor("Assets.ScrollWE.cur", Cursors.ScrollWE);
+            public static Cursor ScrollAll => EnsureCursor("Assets.Cursors.ScrollAll.cur", Cursors.ScrollAll);
+            public static Cursor ScrollE => EnsureCursor("Assets.Cursors.ScrollE.cur", Cursors.ScrollE);
+            public static Cursor ScrollN => EnsureCursor("Assets.Cursors.ScrollN.cur", Cursors.ScrollN);
+            public static Cursor ScrollNE => EnsureCursor("Assets.Cursors.ScrollNE.cur", Cursors.ScrollNE);
+            public static Cursor ScrollNS => EnsureCursor("Assets.Cursors.ScrollNS.cur", Cursors.ScrollNS);
+            public static Cursor ScrollNW => EnsureCursor("Assets.Cursors.ScrollNW.cur", Cursors.ScrollNW);
+            public static Cursor ScrollS => EnsureCursor("Assets.Cursors.ScrollS.cur", Cursors.ScrollS);
+            public static Cursor ScrollSE => EnsureCursor("Assets.Cursors.ScrollSE.cur", Cursors.ScrollSE);
+            public static Cursor ScrollSW => EnsureCursor("Assets.Cursors.ScrollSW.cur", Cursors.ScrollSW);
+            public static Cursor ScrollW => EnsureCursor("Assets.Cursors.ScrollW.cur", Cursors.ScrollW);
+            public static Cursor ScrollWE => EnsureCursor("Assets.Cursors.ScrollWE.cur", Cursors.ScrollWE);
 
             public static ImageSource ScrollAllImage => EnsureCursorImage("Assets.ScrollAll.cur", Cursors.ScrollAll);
             public static ImageSource ScrollNSImage => EnsureCursorImage("Assets.ScrollNS.cur", Cursors.ScrollNS);

@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "MouseMiddleButtonScroll.WinUI3 (Package)": {
+      "commandName": "MsixPackage",
+      "nativeDebugging": true
+    },
+    "MouseMiddleButtonScroll.WinUI3 (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
