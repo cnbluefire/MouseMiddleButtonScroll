@@ -42,28 +42,25 @@ namespace MouseMiddleButtonScroll.WinUI3.Helpers
 
         private unsafe void UpdateSubClass()
         {
+            if (hWnd == 0) return;
+
             lock (locker)
             {
                 if (disposeValue || messageReceived == null)
                 {
                     if (id != 0)
                     {
-                        if (RemoveWindowSubclass(
+                        RemoveWindowSubclass(
                             (Windows.Win32.Foundation.HWND)hWnd,
                             new SUBCLASSPROC()
                             {
                                 Func = &SubClassProcStatic
                             },
-                            id))
-                        {
-                            id = 0;
-                            thisHandle.Free();
-                            thisHandle = default;
-                        }
-                        else
-                        {
-                            Marshal.ThrowExceptionForHR(Marshal.GetHRForLastWin32Error());
-                        }
+                            id);
+
+                        id = 0;
+                        thisHandle.Free();
+                        thisHandle = default;
                     }
                 }
                 else if (id == 0)
@@ -99,14 +96,20 @@ namespace MouseMiddleButtonScroll.WinUI3.Helpers
         {
             if (!disposeValue)
             {
-                lock (locker)
-                {
-                    if (!disposeValue)
-                    {
-                        disposeValue = true;
+                DisposeCore();
+            }
+        }
 
-                        UpdateSubClass();
-                    }
+        private void DisposeCore()
+        {
+            lock (locker)
+            {
+                if (!disposeValue)
+                {
+                    disposeValue = true;
+                    messageReceived = null;
+                    UpdateSubClass();
+                    hWnd = default;
                 }
             }
         }
@@ -120,12 +123,19 @@ namespace MouseMiddleButtonScroll.WinUI3.Helpers
             nuint uIdSubclass,
             nuint dwRefData)
         {
+            const uint WM_DESTROY = 0x0002;
+
             if (dwRefData != 0)
             {
                 var gcHandle = GCHandle.FromIntPtr((nint)dwRefData);
                 if (gcHandle.Target is WindowMessageMonitor sender)
                 {
                     var handle = sender.messageReceived;
+
+                    if (uMsg == WM_DESTROY)
+                    {
+                        sender.DisposeCore();
+                    }
                     if (handle != null)
                     {
                         var args = new MessageReceivedEventArgs(uMsg, wParam.Value, lParam.Value);
