@@ -12,13 +12,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using Windows.Foundation;
-using Windows.Win32.Foundation;
 using WinRT;
 
 namespace MouseMiddleButtonScroll.WinUI3
@@ -103,8 +103,6 @@ namespace MouseMiddleButtonScroll.WinUI3
 
                     scrollViewer.Unloaded += ScrollViewer_Unloaded;
 
-                    appWindowListener.InputActivationListener.InputActivationChanged += InputActivationListener_InputActivationChanged;
-
                     appWindowListener.InputKeyboardSource.KeyDown += InputKeyboardSource_KeyDown;
 
                     appWindowListener.InputPointerSource.PointerWheelChanged += InputPointerSource_PointerWheelChanged;
@@ -115,6 +113,8 @@ namespace MouseMiddleButtonScroll.WinUI3
 
                     appWindowListener.AppWindow.Changed += AppWindow_Changed;
                     appWindowListener.AppWindow.Destroying += AppWindow_Destroying;
+
+                    appWindowListener.WindowMessageMonitor.MessageReceived += WindowMessageMonitor_MessageReceived;
 
                     startPoint = MouseEx.GetPosition(scrollViewer);
                     hasScrolled = false;
@@ -158,10 +158,8 @@ namespace MouseMiddleButtonScroll.WinUI3
                 {
                     UIElementCursorHelper.SetCursor(element, null);
 
-                    appWindowListener.InputActivationListener.InputActivationChanged -= InputActivationListener_InputActivationChanged;
-
                     appWindowListener.InputKeyboardSource.KeyDown -= InputKeyboardSource_KeyDown;
-                    
+
                     appWindowListener.InputPointerSource.PointerWheelChanged -= InputPointerSource_PointerWheelChanged;
                     appWindowListener.InputPointerSource.PointerPressed -= InputPointerSource_PointerPressed;
                     appWindowListener.InputPointerSource.PointerReleased -= InputPointerSource_PointerReleased;
@@ -170,6 +168,10 @@ namespace MouseMiddleButtonScroll.WinUI3
 
                     appWindowListener.AppWindow.Changed -= AppWindow_Changed;
                     appWindowListener.AppWindow.Destroying -= AppWindow_Destroying;
+
+                    appWindowListener.WindowMessageMonitor.MessageReceived -= WindowMessageMonitor_MessageReceived;
+
+                    appWindowListener.Dispose();
                 }
 
                 return;
@@ -305,6 +307,28 @@ namespace MouseMiddleButtonScroll.WinUI3
         private void AppWindow_Destroying(AppWindow sender, object args)
         {
             ExitScrollMode();
+        }
+
+        private void WindowMessageMonitor_MessageReceived(WindowMessageMonitor sender, WindowMessageMonitor.MessageReceivedEventArgs args)
+        {
+            const int WM_NCLBUTTONDOWN = 0x00A1;
+            const int WM_NCRBUTTONDOWN = 0x00A4;
+            const int WM_NCMBUTTONDOWN = 0x00A7;
+            const int WM_NCXBUTTONDOWN = 0x00AB;
+            const int WM_ACTIVATE = 0x0006;
+
+            if (args.MessageId == WM_NCLBUTTONDOWN
+                || args.MessageId == WM_NCRBUTTONDOWN
+                || args.MessageId == WM_NCMBUTTONDOWN
+                || args.MessageId == WM_NCXBUTTONDOWN)
+            {
+                ExitScrollMode();
+            }
+            else if (args.MessageId == WM_ACTIVATE
+                && (args.WParam & 0x0000FFFF) == 0)
+            {
+                ExitScrollMode();
+            }
         }
 
 
@@ -547,7 +571,7 @@ namespace MouseMiddleButtonScroll.WinUI3
             }
         }
 
-        private class AppWindowListener
+        private class AppWindowListener : IDisposable
         {
             public AppWindow AppWindow { get; private set; }
 
@@ -555,7 +579,7 @@ namespace MouseMiddleButtonScroll.WinUI3
 
             public InputKeyboardSource InputKeyboardSource { get; private set; }
 
-            public InputActivationListener InputActivationListener { get; private set; }
+            public WindowMessageMonitor WindowMessageMonitor { get; private set; }
 
             public XamlRoot XamlRoot { get; private set; }
 
@@ -570,40 +594,46 @@ namespace MouseMiddleButtonScroll.WinUI3
 
                     if (appWindow != null)
                     {
-                        var inputActivationListener = InputActivationListener.GetForWindowId(appWindow.Id);
-
-                        if (inputActivationListener != null)
+                        var contentIsland = ContentIsland.GetByVisual(ElementCompositionPreview.GetElementVisual(element));
+                        if (contentIsland == null)
                         {
-                            var contentIsland = ContentIsland.GetByVisual(ElementCompositionPreview.GetElementVisual(element));
-                            if (contentIsland == null)
-                            {
-                                contentIsland = ContentIsland.FindAllForCurrentThread()
-                                    .FirstOrDefault(c => c.Environment.AppWindowId == appWindow.Id);
-                            }
-                            if (contentIsland != null)
-                            {
+                            contentIsland = ContentIsland.FindAllForCurrentThread()
+                                .FirstOrDefault(c => c.Environment.AppWindowId == appWindow.Id);
+                        }
+                        if (contentIsland != null)
+                        {
 
-                                var inputPointerSource = InputPointerSource.GetForIsland(contentIsland);
-                                var inputKeyboardSource = InputKeyboardSource.GetForIsland(contentIsland);
+                            var inputPointerSource = InputPointerSource.GetForIsland(contentIsland);
+                            var inputKeyboardSource = InputKeyboardSource.GetForIsland(contentIsland);
 
-                                if (inputPointerSource != null && inputKeyboardSource != null)
+                            if (inputPointerSource != null && inputKeyboardSource != null)
+                            {
+                                return new AppWindowListener()
                                 {
-                                    return new AppWindowListener()
-                                    {
-                                        AppWindow = appWindow,
-                                        InputActivationListener = inputActivationListener,
-                                        InputKeyboardSource = inputKeyboardSource,
-                                        InputPointerSource = inputPointerSource,
-                                        ContentIsland = contentIsland,
-                                        XamlRoot = xamlRoot,
-                                    };
-                                }
+                                    AppWindow = appWindow,
+                                    InputKeyboardSource = inputKeyboardSource,
+                                    InputPointerSource = inputPointerSource,
+                                    ContentIsland = contentIsland,
+                                    XamlRoot = xamlRoot,
+                                    WindowMessageMonitor = new WindowMessageMonitor(appWindow.Id)
+                                };
                             }
                         }
                     }
                 }
 
                 return null;
+            }
+
+            public void Dispose()
+            {
+                AppWindow = null;
+                InputKeyboardSource = null;
+                InputPointerSource = null;
+                ContentIsland = null;
+                XamlRoot = null;
+                WindowMessageMonitor?.Dispose();
+                WindowMessageMonitor = null;
             }
         }
 
@@ -614,7 +644,7 @@ namespace MouseMiddleButtonScroll.WinUI3
                 if (element.XamlRoot != null && Windows.Win32.PInvoke.GetCursorPos(out var point))
                 {
                     Windows.Win32.PInvoke.ScreenToClient(
-                        (HWND)Win32Interop.GetWindowFromWindowId(element.XamlRoot.ContentIslandEnvironment.AppWindowId),
+                        (Windows.Win32.Foundation.HWND)Win32Interop.GetWindowFromWindowId(element.XamlRoot.ContentIslandEnvironment.AppWindowId),
                         ref point);
 
                     var scale = element.XamlRoot.RasterizationScale;
@@ -668,6 +698,181 @@ namespace MouseMiddleButtonScroll.WinUI3
                 {
                     MarshalInspectable<object>.DisposeMarshaler(value2);
                 }
+            }
+        }
+
+        private class WindowMessageMonitor : IDisposable
+        {
+            private bool disposeValue;
+            private nuint id;
+            private nint hWnd;
+            private object locker = new object();
+            private GCHandle thisHandle;
+
+            public WindowMessageMonitor(WindowId windowId)
+            {
+                hWnd = Win32Interop.GetWindowFromWindowId(windowId);
+            }
+
+            private MessageReceivedEventHandler messageReceived;
+
+            public event MessageReceivedEventHandler MessageReceived
+            {
+                add
+                {
+                    lock (locker)
+                    {
+                        messageReceived += value;
+                        UpdateSubClass();
+                    }
+                }
+                remove
+                {
+                    lock (locker)
+                    {
+                        messageReceived -= value;
+                        UpdateSubClass();
+                    }
+                }
+            }
+
+            private unsafe void UpdateSubClass()
+            {
+                lock (locker)
+                {
+                    if (disposeValue || messageReceived == null)
+                    {
+                        if (id != 0)
+                        {
+                            if (RemoveWindowSubclass(
+                                (Windows.Win32.Foundation.HWND)hWnd,
+                                new SUBCLASSPROC()
+                                {
+                                    Func = &SubClassProcStatic
+                                },
+                                id))
+                            {
+                                id = 0;
+                                thisHandle.Free();
+                                thisHandle = default;
+                            }
+                            else
+                            {
+                                Marshal.ThrowExceptionForHR(Marshal.GetHRForLastWin32Error());
+                            }
+                        }
+                    }
+                    else if (id == 0)
+                    {
+                        nuint subClassId = 200;
+                        var gcHandle = GCHandle.Alloc(this, GCHandleType.Normal);
+
+                        while (true)
+                        {
+                            var res = SetWindowSubclass(
+                                (Windows.Win32.Foundation.HWND)hWnd,
+                                new SUBCLASSPROC()
+                                {
+                                    Func = &SubClassProcStatic
+                                },
+                                subClassId,
+                                (nuint)GCHandle.ToIntPtr(gcHandle));
+
+                            if (res)
+                            {
+                                id = subClassId;
+                                thisHandle = gcHandle;
+                                break;
+                            }
+
+                            subClassId++;
+                        }
+                    }
+                }
+            }
+
+            public void Dispose()
+            {
+                if (!disposeValue)
+                {
+                    lock (locker)
+                    {
+                        if (!disposeValue)
+                        {
+                            disposeValue = true;
+
+                            UpdateSubClass();
+                        }
+                    }
+                }
+            }
+
+            [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+            private static Windows.Win32.Foundation.LRESULT SubClassProcStatic(
+                Windows.Win32.Foundation.HWND hWnd,
+                uint uMsg,
+                Windows.Win32.Foundation.WPARAM wParam,
+                Windows.Win32.Foundation.LPARAM lParam,
+                nuint uIdSubclass,
+                nuint dwRefData)
+            {
+                if (dwRefData != 0)
+                {
+                    var gcHandle = GCHandle.FromIntPtr((nint)dwRefData);
+                    if (gcHandle.Target is WindowMessageMonitor sender)
+                    {
+                        var handle = sender.messageReceived;
+                        if (handle != null)
+                        {
+                            var args = new MessageReceivedEventArgs(uMsg, wParam.Value, lParam.Value);
+                            handle.Invoke(sender, args);
+                            if (args.Handled) return (Windows.Win32.Foundation.LRESULT)args.LResult;
+                        }
+                    }
+                }
+
+                return Windows.Win32.PInvoke.DefSubclassProc(hWnd, uMsg, wParam, lParam);
+            }
+
+            [DllImport("COMCTL32.dll", ExactSpelling = true)]
+            private static extern Windows.Win32.Foundation.BOOL SetWindowSubclass(
+                Windows.Win32.Foundation.HWND hWnd,
+                SUBCLASSPROC pfnSubclass,
+                nuint uIdSubclass,
+                nuint dwRefData);
+
+            [DllImport("COMCTL32.dll", ExactSpelling = true)]
+            private static extern Windows.Win32.Foundation.BOOL RemoveWindowSubclass(
+                Windows.Win32.Foundation.HWND hWnd,
+                SUBCLASSPROC pfnSubclass,
+                nuint uIdSubclass);
+
+            private unsafe struct SUBCLASSPROC
+            {
+                public delegate* unmanaged[Stdcall]<Windows.Win32.Foundation.HWND, uint, Windows.Win32.Foundation.WPARAM, Windows.Win32.Foundation.LPARAM, nuint, nuint, Windows.Win32.Foundation.LRESULT> Func;
+            }
+
+
+            public delegate void MessageReceivedEventHandler(WindowMessageMonitor? sender, MessageReceivedEventArgs args);
+
+            public class MessageReceivedEventArgs
+            {
+                public MessageReceivedEventArgs(uint messageId, nuint wParam, nint lParam)
+                {
+                    MessageId = messageId;
+                    WParam = wParam;
+                    LParam = lParam;
+                }
+
+                public uint MessageId { get; }
+
+                public nuint WParam { get; }
+
+                public nint LParam { get; }
+
+                public nint LResult { get; set; }
+
+                public bool Handled { get; set; }
             }
         }
 

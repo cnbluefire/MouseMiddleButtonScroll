@@ -4,3 +4,7 @@ GetCursorPos
 LoadCursorW
 LoadImageW
 GetCurrentApplicationUserModelId
+IsWindow
+SetWindowSubclass
+RemoveWindowSubclass
+DefSubclassProc
