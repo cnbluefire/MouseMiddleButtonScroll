@@ -1,6 +1,5 @@
 ﻿using Microsoft.UI;
 using Microsoft.UI.Composition;
-using Microsoft.UI.Content;
 using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -8,22 +7,19 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using MouseMiddleButtonScroll.WinUI3.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using Windows.Foundation;
-using WinRT;
 
 namespace MouseMiddleButtonScroll.WinUI3
 {
-    internal class MouseMiddleButtonScrollHelper : IDisposable
+    internal partial class MouseMiddleButtonScrollHelper : IDisposable
     {
         private readonly object locker = new object();
         private ScrollViewer scrollViewer;
@@ -571,72 +567,6 @@ namespace MouseMiddleButtonScroll.WinUI3
             }
         }
 
-        private class AppWindowListener : IDisposable
-        {
-            public AppWindow AppWindow { get; private set; }
-
-            public InputPointerSource InputPointerSource { get; private set; }
-
-            public InputKeyboardSource InputKeyboardSource { get; private set; }
-
-            public WindowMessageMonitor WindowMessageMonitor { get; private set; }
-
-            public XamlRoot XamlRoot { get; private set; }
-
-            public ContentIsland ContentIsland { get; private set; }
-
-            public static AppWindowListener TryCreate(UIElement element)
-            {
-                var xamlRoot = element?.XamlRoot;
-                if (xamlRoot != null)
-                {
-                    var appWindow = AppWindow.GetFromWindowId(xamlRoot.ContentIslandEnvironment.AppWindowId);
-
-                    if (appWindow != null)
-                    {
-                        var contentIsland = ContentIsland.GetByVisual(ElementCompositionPreview.GetElementVisual(element));
-                        if (contentIsland == null)
-                        {
-                            contentIsland = ContentIsland.FindAllForCurrentThread()
-                                .FirstOrDefault(c => c.Environment.AppWindowId == appWindow.Id);
-                        }
-                        if (contentIsland != null)
-                        {
-
-                            var inputPointerSource = InputPointerSource.GetForIsland(contentIsland);
-                            var inputKeyboardSource = InputKeyboardSource.GetForIsland(contentIsland);
-
-                            if (inputPointerSource != null && inputKeyboardSource != null)
-                            {
-                                return new AppWindowListener()
-                                {
-                                    AppWindow = appWindow,
-                                    InputKeyboardSource = inputKeyboardSource,
-                                    InputPointerSource = inputPointerSource,
-                                    ContentIsland = contentIsland,
-                                    XamlRoot = xamlRoot,
-                                    WindowMessageMonitor = new WindowMessageMonitor(appWindow.Id)
-                                };
-                            }
-                        }
-                    }
-                }
-
-                return null;
-            }
-
-            public void Dispose()
-            {
-                AppWindow = null;
-                InputKeyboardSource = null;
-                InputPointerSource = null;
-                ContentIsland = null;
-                XamlRoot = null;
-                WindowMessageMonitor?.Dispose();
-                WindowMessageMonitor = null;
-            }
-        }
-
         private static class MouseEx
         {
             public static Point GetPosition(UIElement element)
@@ -653,226 +583,6 @@ namespace MouseMiddleButtonScroll.WinUI3
                         y: point.Y / scale));
                 }
                 return default;
-            }
-        }
-
-        private static class UIElementCursorHelper
-        {
-            public static InputCursor GetCursor(UIElement element)
-            {
-                using var reference = ((IWinRTObject)element).NativeObject.As(new Guid("8f69b9e9-1f00-5834-9bf1-a9257bed39f0"));
-                return get_ProtectedCursor(reference);
-            }
-
-            public static void SetCursor(UIElement element, InputCursor value)
-            {
-                using var reference = ((IWinRTObject)element).NativeObject.As(new Guid("8f69b9e9-1f00-5834-9bf1-a9257bed39f0"));
-                set_ProtectedCursor(reference, value);
-            }
-
-            private unsafe static global::Microsoft.UI.Input.InputCursor get_ProtectedCursor(IObjectReference _obj)
-            {
-                IntPtr thisPtr = _obj.ThisPtr;
-                IntPtr intPtr = default(IntPtr);
-                try
-                {
-                    ExceptionHelpers.ThrowExceptionForHR(((delegate* unmanaged[Stdcall]<IntPtr, out IntPtr, int>)(*(IntPtr*)((nint)(*(IntPtr*)(void*)thisPtr) + (nint)6 * (nint)sizeof(delegate* unmanaged[Stdcall]<IntPtr, out IntPtr, int>))))(thisPtr, out intPtr));
-                    return ABI.Microsoft.UI.Input.InputCursor.FromAbi(intPtr);
-                }
-                finally
-                {
-                    ABI.Microsoft.UI.Input.InputCursor.DisposeAbi(intPtr);
-                }
-            }
-
-            private unsafe static void set_ProtectedCursor(IObjectReference _obj, global::Microsoft.UI.Input.InputCursor value)
-            {
-                IntPtr thisPtr = _obj.ThisPtr;
-                ObjectReferenceValue value2 = default(ObjectReferenceValue);
-                try
-                {
-                    value2 = ABI.Microsoft.UI.Input.InputCursor.CreateMarshaler2(value);
-                    ExceptionHelpers.ThrowExceptionForHR(((delegate* unmanaged[Stdcall]<IntPtr, IntPtr, int>)(*(IntPtr*)((nint)(*(IntPtr*)(void*)thisPtr) + (nint)7 * (nint)sizeof(delegate* unmanaged[Stdcall]<IntPtr, IntPtr, int>))))(thisPtr, MarshalInspectable<object>.GetAbi(value2)));
-                }
-                finally
-                {
-                    MarshalInspectable<object>.DisposeMarshaler(value2);
-                }
-            }
-        }
-
-        private class WindowMessageMonitor : IDisposable
-        {
-            private bool disposeValue;
-            private nuint id;
-            private nint hWnd;
-            private object locker = new object();
-            private GCHandle thisHandle;
-
-            public WindowMessageMonitor(WindowId windowId)
-            {
-                hWnd = Win32Interop.GetWindowFromWindowId(windowId);
-            }
-
-            private MessageReceivedEventHandler messageReceived;
-
-            public event MessageReceivedEventHandler MessageReceived
-            {
-                add
-                {
-                    lock (locker)
-                    {
-                        messageReceived += value;
-                        UpdateSubClass();
-                    }
-                }
-                remove
-                {
-                    lock (locker)
-                    {
-                        messageReceived -= value;
-                        UpdateSubClass();
-                    }
-                }
-            }
-
-            private unsafe void UpdateSubClass()
-            {
-                lock (locker)
-                {
-                    if (disposeValue || messageReceived == null)
-                    {
-                        if (id != 0)
-                        {
-                            if (RemoveWindowSubclass(
-                                (Windows.Win32.Foundation.HWND)hWnd,
-                                new SUBCLASSPROC()
-                                {
-                                    Func = &SubClassProcStatic
-                                },
-                                id))
-                            {
-                                id = 0;
-                                thisHandle.Free();
-                                thisHandle = default;
-                            }
-                            else
-                            {
-                                Marshal.ThrowExceptionForHR(Marshal.GetHRForLastWin32Error());
-                            }
-                        }
-                    }
-                    else if (id == 0)
-                    {
-                        nuint subClassId = 200;
-                        var gcHandle = GCHandle.Alloc(this, GCHandleType.Normal);
-
-                        while (true)
-                        {
-                            var res = SetWindowSubclass(
-                                (Windows.Win32.Foundation.HWND)hWnd,
-                                new SUBCLASSPROC()
-                                {
-                                    Func = &SubClassProcStatic
-                                },
-                                subClassId,
-                                (nuint)GCHandle.ToIntPtr(gcHandle));
-
-                            if (res)
-                            {
-                                id = subClassId;
-                                thisHandle = gcHandle;
-                                break;
-                            }
-
-                            subClassId++;
-                        }
-                    }
-                }
-            }
-
-            public void Dispose()
-            {
-                if (!disposeValue)
-                {
-                    lock (locker)
-                    {
-                        if (!disposeValue)
-                        {
-                            disposeValue = true;
-
-                            UpdateSubClass();
-                        }
-                    }
-                }
-            }
-
-            [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
-            private static Windows.Win32.Foundation.LRESULT SubClassProcStatic(
-                Windows.Win32.Foundation.HWND hWnd,
-                uint uMsg,
-                Windows.Win32.Foundation.WPARAM wParam,
-                Windows.Win32.Foundation.LPARAM lParam,
-                nuint uIdSubclass,
-                nuint dwRefData)
-            {
-                if (dwRefData != 0)
-                {
-                    var gcHandle = GCHandle.FromIntPtr((nint)dwRefData);
-                    if (gcHandle.Target is WindowMessageMonitor sender)
-                    {
-                        var handle = sender.messageReceived;
-                        if (handle != null)
-                        {
-                            var args = new MessageReceivedEventArgs(uMsg, wParam.Value, lParam.Value);
-                            handle.Invoke(sender, args);
-                            if (args.Handled) return (Windows.Win32.Foundation.LRESULT)args.LResult;
-                        }
-                    }
-                }
-
-                return Windows.Win32.PInvoke.DefSubclassProc(hWnd, uMsg, wParam, lParam);
-            }
-
-            [DllImport("COMCTL32.dll", ExactSpelling = true)]
-            private static extern Windows.Win32.Foundation.BOOL SetWindowSubclass(
-                Windows.Win32.Foundation.HWND hWnd,
-                SUBCLASSPROC pfnSubclass,
-                nuint uIdSubclass,
-                nuint dwRefData);
-
-            [DllImport("COMCTL32.dll", ExactSpelling = true)]
-            private static extern Windows.Win32.Foundation.BOOL RemoveWindowSubclass(
-                Windows.Win32.Foundation.HWND hWnd,
-                SUBCLASSPROC pfnSubclass,
-                nuint uIdSubclass);
-
-            private unsafe struct SUBCLASSPROC
-            {
-                public delegate* unmanaged[Stdcall]<Windows.Win32.Foundation.HWND, uint, Windows.Win32.Foundation.WPARAM, Windows.Win32.Foundation.LPARAM, nuint, nuint, Windows.Win32.Foundation.LRESULT> Func;
-            }
-
-
-            public delegate void MessageReceivedEventHandler(WindowMessageMonitor? sender, MessageReceivedEventArgs args);
-
-            public class MessageReceivedEventArgs
-            {
-                public MessageReceivedEventArgs(uint messageId, nuint wParam, nint lParam)
-                {
-                    MessageId = messageId;
-                    WParam = wParam;
-                    LParam = lParam;
-                }
-
-                public uint MessageId { get; }
-
-                public nuint WParam { get; }
-
-                public nint LParam { get; }
-
-                public nint LResult { get; set; }
-
-                public bool Handled { get; set; }
             }
         }
 

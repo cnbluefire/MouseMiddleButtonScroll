@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 using Windows.Storage.Streams;
 using WinRT;
 
-namespace MouseMiddleButtonScroll.WinUI3
+namespace MouseMiddleButtonScroll.WinUI3.Helpers
 {
     internal static class ScrollCursorHelper
     {
@@ -156,14 +156,14 @@ namespace MouseMiddleButtonScroll.WinUI3
                     var filePath2 = filePath + "\0";
                     fixed (char* filePathPtr = filePath2)
                     {
-                        hCursor = (Windows.Win32.UI.WindowsAndMessaging.HCURSOR)(Windows.Win32.PInvoke.LoadImage(
+                        hCursor = (Windows.Win32.UI.WindowsAndMessaging.HCURSOR)Windows.Win32.PInvoke.LoadImage(
                             default,
                             filePathPtr,
                             Windows.Win32.UI.WindowsAndMessaging.GDI_IMAGE_TYPE.IMAGE_CURSOR,
                             0, 0,
                             Windows.Win32.UI.WindowsAndMessaging.IMAGE_FLAGS.LR_DEFAULTCOLOR
                             | Windows.Win32.UI.WindowsAndMessaging.IMAGE_FLAGS.LR_LOADFROMFILE
-                            | Windows.Win32.UI.WindowsAndMessaging.IMAGE_FLAGS.LR_DEFAULTSIZE).Value);
+                            | Windows.Win32.UI.WindowsAndMessaging.IMAGE_FLAGS.LR_DEFAULTSIZE).Value;
 
                         return CreateInputCursorFromHCursor(hCursor);
                     }
@@ -336,7 +336,7 @@ namespace MouseMiddleButtonScroll.WinUI3
                 return stream;
             }
 
-            private unsafe static Windows.Win32.Foundation.WIN32_ERROR GetCurrentApplicationUserModelId(out string? applicationUserModelId)
+            private unsafe static Windows.Win32.Foundation.WIN32_ERROR GetCurrentApplicationUserModelId(out string applicationUserModelId)
             {
                 applicationUserModelId = null;
 

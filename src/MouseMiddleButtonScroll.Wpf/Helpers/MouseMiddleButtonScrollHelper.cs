@@ -15,7 +15,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
-namespace MouseMiddleButtonScroll.Wpf
+namespace MouseMiddleButtonScroll.Wpf.Helpers
 {
     internal class MouseMiddleButtonScrollHelper : IDisposable
     {
@@ -134,7 +134,7 @@ namespace MouseMiddleButtonScroll.Wpf
                 scrollViewer.Unloaded -= ScrollViewer_Unloaded;
 
                 this.window = null;
-                this.scrollViewer = null;
+                scrollViewer = null;
 
                 if (window != null)
                 {
@@ -543,9 +543,9 @@ namespace MouseMiddleButtonScroll.Wpf
                     {
                         if (stream != null)
                         {
-                            return (cursors[fileName] = new Cursor(stream, true));
+                            return cursors[fileName] = new Cursor(stream, true);
                         }
-                        return (cursors[fileName] = fallbackCursor);
+                        return cursors[fileName] = fallbackCursor;
                     }
                 }
             }
